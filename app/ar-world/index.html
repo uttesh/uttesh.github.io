@@ -10,20 +10,27 @@
         margin: 0;
         overflow: hidden;
         font-family: "Inter", sans-serif;
+        background-color: #000; /* Ensure background is dark for camera feed */
       }
 
       /* --- UI OVERLAYS --- */
-      #locationDisplay {
+      #locationInfoDisplay {
         position: absolute;
         top: 10px;
         left: 10px;
-        background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
+        background-color: rgba(0, 0, 0, 0.7);
         color: white;
         padding: 8px 12px;
         border-radius: 8px;
         font-size: 0.9em;
-        z-index: 1000; /* Above AR scene */
-        pointer-events: none; /* Allows clicks to pass through to AR elements */
+        z-index: 1000;
+        pointer-events: none;
+      }
+
+      #distanceDisplay {
+        margin-top: 5px; /* Spacing below lat/lon */
+        font-size: 0.8em;
+        color: #add8e6; /* Light blue for distance */
       }
 
       .arjs-loader {
@@ -56,12 +63,7 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background-color: rgba(
-          248,
-          215,
-          218,
-          0.9
-        ); /* Light red, semi-transparent */
+        background-color: rgba(248, 215, 218, 0.9);
         color: #721c24;
         padding: 20px;
         border: 1px solid #f5c6cb;
@@ -91,22 +93,22 @@
 
       /* --- DESCRIPTION POPUP --- */
       #descriptionPopup {
-        display: none; /* Hidden by default */
+        display: none;
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background-color: rgba(0, 0, 0, 0.7); /* Transparent black background */
+        background-color: rgba(0, 0, 0, 0.7);
         color: white;
         padding: 25px;
         border-radius: 12px;
-        z-index: 10001; /* Above other overlays */
+        z-index: 10001;
         max-width: 90%;
-        width: 300px; /* Fixed width for better appearance */
-        box-sizing: border-box; /* Include padding in width */
-        backdrop-filter: blur(8px); /* Apply blur effect to background */
-        -webkit-backdrop-filter: blur(8px); /* Safari support */
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+        width: 300px;
+        box-sizing: border-box;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
         animation: fadeIn 0.3s ease-out;
       }
 
@@ -125,7 +127,7 @@
         margin-top: 0;
         margin-bottom: 10px;
         font-size: 1.5em;
-        color: #4caf50; /* Green highlight for title */
+        color: #4caf50;
       }
 
       #descriptionPopup p {
@@ -148,7 +150,7 @@
       }
 
       #descriptionPopup button.close-btn:hover {
-        color: #f44336; /* Red on hover */
+        color: #f44336;
       }
 
       #audioControls button {
@@ -167,9 +169,10 @@
     </style>
   </head>
   <body>
-    <div id="locationDisplay">
+    <div id="locationInfoDisplay">
       Latitude: <span id="currentLat">--.--</span> <br />
-      Longitude: <span id="currentLon">--.--</span>
+      Longitude: <span id="currentLon">--.--</span> <br />
+      <span id="distanceDisplay">Distance to nearest: -- m</span>
     </div>
 
     <div class="arjs-loader">
@@ -215,27 +218,25 @@
         id="camera"
         look-controls-enabled="false"
         arjs-device-orientation-controls="smoothingFactor: 0.1"
-        gps-new-camera="gpsMinDistance: 5"
+        gps-new-camera="gpsMinDistance: 1"
       >
       </a-camera>
     </a-scene>
 
     <script>
-      // Array of predefined items that can be placed in the AR scene.
-      // Each item now includes a 'description' and a 'audioSrc' for future use.
       const itemsToPlace = [
         {
           name: "Mysterious Box",
-          model: "assets/wolf_with_animations.glb",
+          model: "assets/toon_cat_free.glb",
           scale: "1 1 1",
           description:
             "This ancient box, covered in strange glyphs, seems to pulse with a faint energy. Perhaps it holds a secret!",
           audioSrc:
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" // Example audio
+            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
         },
         {
           name: "Glimmering Orb",
-          model: "assets/toon_cat_free.glb",
+          model: "assets/wolf_with_animations.glb",
           scale: "0.8 0.8 0.8",
           description:
             "A perfectly smooth orb, reflecting light in mesmerizing patterns. Legends say it can reveal hidden truths.",
@@ -244,7 +245,7 @@
         },
         {
           name: "Weathered Totem",
-          model: "assets/wolf_with_animations.glb",
+          model: "assets/toon_cat_free.glb",
           scale: "1.2 1.2 1.2",
           description:
             "Carved from an unknown wood, this totem stands as a silent guardian, weathered by countless seasons.",
@@ -253,7 +254,7 @@
         },
         {
           name: "Ancient Scroll",
-          model: "assets/toon_cat_free.glb",
+          model: "assets/wolf_with_animations.glb",
           scale: "0.9 0.9 0.9",
           description:
             "Unfurling slightly, this scroll hints at forgotten lore and maps to untold riches.",
@@ -262,7 +263,7 @@
         },
         {
           name: "Floating Gem",
-          model: "assets/wolf_with_animations.glb",
+          model: "assets/toon_cat_free.glb",
           scale: "1.1 1.1 1.1",
           description:
             "This crystalline gem hums with a soft vibration, seemingly defying gravity as it hovers.",
@@ -271,52 +272,96 @@
         }
       ];
 
-      // Get references to DOM elements
       const scene = document.querySelector("a-scene");
       const loader = document.querySelector(".arjs-loader");
       const messageBox = document.getElementById("messageBox");
       const messageText = document.getElementById("messageText");
       const currentLatSpan = document.getElementById("currentLat");
       const currentLonSpan = document.getElementById("currentLon");
+      const distanceDisplay = document.getElementById("distanceDisplay"); // New element
       const descriptionPopup = document.getElementById("descriptionPopup");
       const popupItemName = document.getElementById("popupItemName");
       const popupDescription = document.getElementById("popupDescription");
       const playAudioBtn = document.getElementById("playAudioBtn");
       const itemAudio = document.getElementById("itemAudio");
 
-      // Flag to ensure items are placed only once after initial location fix
       let itemsPlaced = false;
+      let placedEntities = []; // Array to store references to placed entities
 
       /**
-       * Displays a custom message box instead of using `alert()`.
-       * @param {string} message - The message to display.
+       * Calculates the distance between two geographical points (Haversine formula).
+       * @param {number} lat1 - Latitude of point 1.
+       * @param {number} lon1 - Longitude of point 1.
+       * @param {number} lat2 - Latitude of point 2.
+       * @param {number} lon2 - Longitude of point 2.
+       * @returns {number} Distance in meters.
        */
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // metres
+        const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radians
+        const φ2 = (lat2 * Math.PI) / 180;
+        const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+        const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+        const a =
+          Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+          Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        const d = R * c; // in metres
+        return d;
+      }
+
       function showMessage(message) {
         messageText.textContent = message;
         messageBox.style.display = "block";
       }
 
       /**
-       * Updates the on-screen Latitude and Longitude display.
+       * Updates the on-screen Latitude/Longitude display and calculates distance to nearest model.
        * @param {GeolocationPosition} position - The current geolocation position.
        */
       function updateLocationDisplay(position) {
-        currentLatSpan.textContent = position.coords.latitude.toFixed(6);
-        currentLonSpan.textContent = position.coords.longitude.toFixed(6);
+        const userLat = position.coords.latitude;
+        const userLon = position.coords.longitude;
 
-        // Place items only once the first accurate location is obtained
+        currentLatSpan.textContent = userLat.toFixed(6);
+        currentLonSpan.textContent = userLon.toFixed(6);
+
+        // Calculate distance to nearest placed model
+        let minDistance = Infinity;
+        if (placedEntities.length > 0) {
+          placedEntities.forEach((entity) => {
+            const itemGps = entity.getAttribute("gps-entity-place");
+            if (itemGps) {
+              const itemLat = parseFloat(itemGps.latitude);
+              const itemLon = parseFloat(itemGps.longitude);
+              const dist = calculateDistance(
+                userLat,
+                userLon,
+                itemLat,
+                itemLon
+              );
+              if (dist < minDistance) {
+                minDistance = dist;
+              }
+            }
+          });
+          distanceDisplay.textContent = `Distance to nearest: ${minDistance.toFixed(
+            1
+          )} m`;
+        } else {
+          distanceDisplay.textContent = `Distance to nearest: -- m`;
+        }
+
         if (!itemsPlaced) {
-          placeRandomItems(position.coords.latitude, position.coords.longitude);
-          itemsPlaced = true; // Set flag to true after placing
+          placeRandomItems(userLat, userLon);
+          itemsPlaced = true;
         }
       }
 
-      /**
-       * Handles geolocation errors.
-       * @param {GeolocationPositionError} error - The geolocation error object.
-       */
       function handleLocationError(error) {
-        loader.style.display = "none"; // Hide loader even if there's an error
+        loader.style.display = "none";
         let errorMessage = "Error getting your location: ";
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -341,39 +386,32 @@
 
       /**
        * Places random AR items around the user's initial location.
-       * This function is called only once after the first successful location fix.
        * @param {number} userLat - User's latitude.
        * @param {number} userLon - User's longitude.
        */
       function placeRandomItems(userLat, userLon) {
-        loader.style.display = "none"; // Hide loader once location is obtained
+        loader.style.display = "none";
 
-        // Define the desired distance from the user (20 feet = ~6.096 meters)
-        const desiredDistanceMeters = 6.096;
-        const numberOfItems = 5; // How many items to place
+        // Changed from 20 feet to 10 feet (~3.048 meters)
+        const desiredDistanceMeters = 3.048;
+        const numberOfItems = 5;
 
         for (let i = 0; i < numberOfItems; i++) {
           const randomItem =
             itemsToPlace[Math.floor(Math.random() * itemsToPlace.length)];
 
-          const randomAngle = Math.random() * 2 * Math.PI; // 0 to 2*PI radians
+          const randomAngle = Math.random() * 2 * Math.PI;
 
-          // Calculate displacement in meters (dx for East-West, dy for North-South)
           const dx_meters = desiredDistanceMeters * Math.cos(randomAngle);
           const dy_meters = desiredDistanceMeters * Math.sin(randomAngle);
 
-          // Approximate conversion factors from meters to degrees
-          // 1 degree of latitude is approximately 111,139 meters
           const meters_per_degree_lat = 111139;
-          // 1 degree of longitude varies by latitude: meters_per_degree_lon = 111139 * cos(latitude_in_radians)
           const meters_per_degree_lon =
             111139 * Math.cos((userLat * Math.PI) / 180);
 
-          // Calculate the latitude and longitude offsets
           const offsetLat = dy_meters / meters_per_degree_lat;
           const offsetLon = dx_meters / meters_per_degree_lon;
 
-          // Calculate the final item coordinates
           const itemLat = userLat + offsetLat;
           const itemLon = userLon + offsetLon;
 
@@ -385,21 +423,20 @@
           itemEntity.setAttribute("gltf-model", randomItem.model);
           itemEntity.setAttribute("scale", randomItem.scale);
           itemEntity.setAttribute("look-at", "#camera");
-          // Store the full item data on the entity for easy retrieval on click
           itemEntity.setAttribute("item-data", JSON.stringify(randomItem));
           itemEntity.setAttribute("cursor-listener", "");
 
-          // Add a text label above the model
           const textEntity = document.createElement("a-text");
           textEntity.setAttribute("value", randomItem.name);
           textEntity.setAttribute("align", "center");
           textEntity.setAttribute("color", "white");
           textEntity.setAttribute("wrap-count", "20");
-          textEntity.setAttribute("position", "0 1.5 0"); // Adjust vertical position above the model
+          textEntity.setAttribute("position", "0 1.5 0");
           textEntity.setAttribute("scale", "2 2 2");
           itemEntity.appendChild(textEntity);
 
           scene.appendChild(itemEntity);
+          placedEntities.push(itemEntity); // Store reference to entity
 
           console.log(
             `Placed ${randomItem.name} at Lat: ${itemLat.toFixed(
@@ -411,12 +448,9 @@
         }
       }
 
-      // --- Event Listeners and Initial Setup ---
-
-      // A-Frame event listener: 'loaded' event fires when the A-Frame scene is ready.
       scene.addEventListener("loaded", () => {
-        // Start watching position immediately to update display and place items
         if (navigator.geolocation) {
+          // Use watchPosition to continuously get updates for display and distance calculation
           navigator.geolocation.watchPosition(
             updateLocationDisplay,
             handleLocationError,
@@ -435,18 +469,14 @@
         }
       });
 
-      // A-Frame component to handle clicks on AR entities.
       AFRAME.registerComponent("cursor-listener", {
         init: function () {
           this.el.addEventListener("click", function (evt) {
-            // Retrieve the stored item data from the entity
             const itemData = JSON.parse(this.el.getAttribute("item-data"));
 
-            // Populate and show the description popup
             popupItemName.textContent = itemData.name;
             popupDescription.textContent = itemData.description;
 
-            // Set up audio (for future implementation)
             if (itemData.audioSrc) {
               itemAudio.src = itemData.audioSrc;
               playAudioBtn.disabled = false;
@@ -463,7 +493,7 @@
             } else {
               playAudioBtn.disabled = true;
               playAudioBtn.textContent = "No Audio Available";
-              itemAudio.src = ""; // Clear source
+              itemAudio.src = "";
             }
 
             descriptionPopup.style.display = "block";
@@ -472,13 +502,12 @@
         }
       });
 
-      // Stop audio if popup is closed
       descriptionPopup
         .querySelector(".close-btn")
         .addEventListener("click", () => {
           itemAudio.pause();
-          itemAudio.currentTime = 0; // Reset audio to start
-          playAudioBtn.textContent = "Play Audio (Feature Coming Soon)"; // Reset button text
+          itemAudio.currentTime = 0;
+          playAudioBtn.textContent = "Play Audio (Feature Coming Soon)";
         });
     </script>
   </body>

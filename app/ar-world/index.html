@@ -1,195 +1,292 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <title>AR Location Finder</title>
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- AR.js requires A-Frame 1.3.0 for location-based AR -->
+    <!-- The following script is the AR.js A-Frame component for location-based AR -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      .arjs-loader {
-        height: 100%;
-        width: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        background-color: rgba(0, 0, 0, 0.8);
-        z-index: 9999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-      .arjs-loader div {
-        text-align: center;
-        font-size: 1.2em;
-        color: white;
-      }
+        /* Basic styling for the body to remove default margins */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif; /* Using Inter font as per instructions */
+        }
+
+        /* Styling for the loading screen overlay */
+        .arjs-loader {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8); /* Semi-transparent black background */
+            z-index: 9999; /* Ensure it's on top of everything */
+            display: flex;
+            flex-direction: column; /* Stack elements vertically */
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px; /* Rounded corners */
+        }
+
+        .arjs-loader div {
+            text-align: center;
+            font-size: 1.2em;
+            color: white;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 8px; /* Rounded corners for the text box */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+        }
+
+        /* Message box for alerts, replaces alert() */
+        #messageBox {
+            display: none; /* Hidden by default */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #f8d7da; /* Light red for error */
+            color: #721c24; /* Dark red text */
+            padding: 20px;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            text-align: center;
+            max-width: 80%;
+            font-size: 0.9em; /* Slightly smaller for mobile readability */
+        }
+
+        #messageBox button {
+            background-color: #dc3545; /* Red button */
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            border-radius: 8px; /* Rounded corners */
+        }
+
+        #messageBox button:hover {
+            background-color: #c82333; /* Darker red on hover */
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+    <!-- Loading overlay for user feedback -->
     <div class="arjs-loader">
-      <div>
-        Loading AR experience... Please grant location and camera permissions.
-      </div>
+        <div>Loading AR experience...<br>Please grant location and camera permissions.</div>
     </div>
 
+    <!-- Custom message box for displaying errors or information -->
+    <div id="messageBox">
+        <p id="messageText"></p>
+        <button onclick="document.getElementById('messageBox').style.display = 'none';">OK</button>
+    </div>
+
+    <!-- A-Frame scene where the AR experience takes place -->
+    <!--
+        - vr-mode-ui="enabled: false": Disables the default A-Frame VR UI button,
+                                      as this is primarily an AR application.
+        - arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;":
+            - sourceType: webcam - Uses the device's camera for the AR feed.
+            - videoTexture: true - Renders the camera feed as a background.
+            - debugUIEnabled: false - Hides the AR.js debug UI.
+        - gps-entity-place="true": Enables location-based AR features for entities
+                                   within this A-Frame scene.
+        - renderer="logarithmicDepthBuffer: true;": Improves depth perception
+                                                    for objects at various distances.
+    -->
     <a-scene
-      vr-mode-ui="enabled: false"
-      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
-      gps-entity-place="true"
-      renderer="logarithmicDepthBuffer: true;"
-    >
-      <a-camera
-        id="camera"
-        look-controls-enabled="false"
-        arjs-device-orientation-controls="smoothingFactor: 0.1"
-        gps-new-camera="gpsMinDistance: 5"
-      >
-      </a-camera>
+        vr-mode-ui="enabled: false"
+        arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+        gps-entity-place="true"
+        renderer="logarithmicDepthBuffer: true;">
+
+        <!--
+            Camera element. AR.js handles its position and rotation based on
+            device sensors (GPS, accelerometer, gyroscope).
+            - look-controls-enabled="false": Disables default mouse/touch camera controls.
+            - arjs-device-orientation-controls="smoothingFactor: 0.1": Uses device
+                                                                      orientation with smoothing.
+            - gps-new-camera="gpsMinDistance: 5": Updates camera position based on GPS
+                                                  when the user moves at least 5 meters,
+                                                  optimizing performance.
+        -->
+        <a-camera
+            id="camera"
+            look-controls-enabled="false"
+            arjs-device-orientation-controls="smoothingFactor: 0.1"
+            gps-new-camera="gpsMinDistance: 5">
+        </a-camera>
     </a-scene>
 
     <script>
-      const itemsToPlace = [
-        {
-          name: "Box",
-          model: "assets/wolf_with_animations.glb",
-          scale: "1 1 1",
-          description: "A mysterious box"
-        },
-        {
-          name: "Sphere",
-          model: "assets/toon_cat_free.glb",
-          scale: "0.5 0.5 0.5",
-          description: "A glowing sphere"
-        },
-        {
-          name: "Cylinder",
-          model: "assets/wolf_with_animations.glb",
-          scale: "0.8 0.8 0.8",
-          description: "An ancient cylinder"
-        },
-        {
-          name: "Cone",
-          model: "assets/toon_cat_free.glb",
-          scale: "1.2 1.2 1.2",
-          description: "A pointy cone"
+        // Array of predefined items that can be placed in the AR scene.
+        // Each item has a name, a model path (using a public GLB for demonstration),
+        // and a scale for its 3D representation.
+        const itemsToPlace = [
+            // Using a simple publicly available GLB model from A-Frame examples.
+            // Replace these with paths to your own .glb files (e.g., "./assets/my_model.glb")
+            { name: "Red Box", model: "https://cdn.aframe.io/examples/ar/models/box/box.glb", scale: "1 1 1" },
+            { name: "Green Sphere", model: "https://cdn.aframe.io/examples/ar/models/sphere/sphere.glb", scale: "0.8 0.8 0.8" },
+            { name: "Blue Cone", model: "https://cdn.aframe.io/examples/ar/models/cone/cone.glb", scale: "1.2 1.2 1.2" },
+            { name: "Yellow Cylinder", model: "https://cdn.aframe.io/examples/ar/models/cylinder/cylinder.glb", scale: "0.9 0.9 0.9" },
+            { name: "Purple Dodecahedron", model: "https://cdn.aframe.io/examples/ar/models/dodecahedron/dodecahedron.glb", scale: "1.1 1.1 1.1" }
+        ];
+
+        // Get references to the A-Frame scene and the loading overlay
+        const scene = document.querySelector('a-scene');
+        const loader = document.querySelector('.arjs-loader');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+
+        /**
+         * Displays a custom message box instead of using `alert()`.
+         * @param {string} message - The message to display.
+         */
+        function showMessage(message) {
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
         }
-      ];
 
-      const scene = document.querySelector("a-scene");
-      const loader = document.querySelector(".arjs-loader");
+        /**
+         * Fetches the user's current geolocation and places random AR items around them.
+         */
+        function placeRandomItems() {
+            // Check if the Geolocation API is supported by the browser
+            if (navigator.geolocation) {
+                // Request the current position. This will trigger a permission prompt.
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // Successfully obtained user's location
+                        const userLat = position.coords.latitude;
+                        const userLon = position.coords.longitude;
 
-      // Function to get current location and place items
-      function placeRandomItems() {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const userLat = position.coords.latitude;
-              const userLon = position.coords.longitude;
+                        // Hide the loading overlay now that location is acquired
+                        loader.style.display = 'none';
 
-              loader.style.display = "none"; // Hide loader once location is obtained
+                        console.log(`User at Lat: ${userLat}, Lon: ${userLon}`);
 
-              // Place 5 random items around the user's location
-              for (let i = 0; i < 5; i++) {
-                const randomItem =
-                  itemsToPlace[Math.floor(Math.random() * itemsToPlace.length)];
+                        // Define the desired distance from the user (20 feet = ~6.096 meters)
+                        const desiredDistanceMeters = 6.096;
 
-                // Generate slightly offset random coordinates for each item
-                // This creates a spread of items around the user
-                const offsetLat = (Math.random() - 0.5) * 0.0005; // ~50 meters offset
-                const offsetLon = (Math.random() - 0.5) * 0.0005; // ~50 meters offset
+                        // Place 5 random items around the user's initial location
+                        for (let i = 0; i < 5; i++) {
+                            // Select a random item from the predefined list
+                            const randomItem = itemsToPlace[Math.floor(Math.random() * itemsToPlace.length)];
 
-                const itemLat = userLat + offsetLat;
-                const itemLon = userLon + offsetLon;
+                            // Generate a random angle (0 to 2*PI radians) for circular placement
+                            const randomAngle = Math.random() * 2 * Math.PI;
 
-                const itemEntity = document.createElement("a-entity");
-                itemEntity.setAttribute(
-                  "gps-entity-place",
-                  `latitude: ${itemLat}; longitude: ${itemLon};`
+                            // Calculate displacement in meters (dx for longitude, dy for latitude)
+                            const dx_meters = desiredDistanceMeters * Math.cos(randomAngle);
+                            const dy_meters = desiredDistanceMeters * Math.sin(randomAngle);
+
+                            // Approximate conversion factors from meters to degrees
+                            // 1 degree of latitude is approximately 111,139 meters
+                            const meters_per_degree_lat = 111139;
+                            // 1 degree of longitude varies by latitude: meters_per_degree_lon = 111139 * cos(latitude_in_radians)
+                            const meters_per_degree_lon = 111139 * Math.cos(userLat * Math.PI / 180);
+
+                            // Calculate the latitude and longitude offsets
+                            const offsetLat = dy_meters / meters_per_degree_lat;
+                            const offsetLon = dx_meters / meters_per_degree_lon;
+
+                            // Calculate the final item coordinates
+                            const itemLat = userLat + offsetLat;
+                            const itemLon = userLon + offsetLon;
+
+                            // Create a new A-Frame entity for the AR item
+                            const itemEntity = document.createElement('a-entity');
+                            // Set the real-world GPS coordinates for the entity
+                            itemEntity.setAttribute('gps-entity-place', `latitude: ${itemLat}; longitude: ${itemLon};`);
+                            // Load the 3D model (GLTF/GLB format)
+                            itemEntity.setAttribute('gltf-model', randomItem.model);
+                            itemEntity.setAttribute('scale', randomItem.scale); // Set the scale of the item
+                            itemEntity.setAttribute('look-at', '#camera'); // Make the item always face the user's camera
+
+                            // Add a component to listen for clicks/taps on the item
+                            itemEntity.setAttribute('cursor-listener', '');
+
+                            // Create a text label for the item
+                            const textEntity = document.createElement('a-text');
+                            textEntity.setAttribute('value', randomItem.name); // Display the item's name
+                            textEntity.setAttribute('align', 'center'); // Center the text
+                            textEntity.setAttribute('color', 'white'); // White text color
+                            textEntity.setAttribute('wrap-count', '20'); // Wrap text if it's too long
+                            textEntity.setAttribute('position', '0 1.5 0'); // Position text slightly above the item
+                            textEntity.setAttribute('scale', '2 2 2'); // Make text larger for visibility
+                            itemEntity.appendChild(textEntity); // Add the text to the item entity
+
+                            // Append the new item entity to the A-Frame scene
+                            scene.appendChild(itemEntity);
+
+                            console.log(`Placed ${randomItem.name} at Lat: ${itemLat}, Lon: ${itemLon} (Approx. ${desiredDistanceMeters}m from user's initial location)`);
+                        }
+                    },
+                    // Error callback for geolocation
+                    (error) => {
+                        loader.style.display = 'none'; // Hide loader even if there's an error
+                        let errorMessage = 'Error getting your location: ';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage += "User denied the request for Geolocation. Please enable location access in your browser settings.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage += "Location information is unavailable.";
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage += "The request to get user location timed out. Please ensure good GPS signal.";
+                                break;
+                            case error.UNKNOWN_ERROR:
+                                errorMessage += "An unknown error occurred.";
+                                break;
+                        }
+                        showMessage(errorMessage); // Use custom message box
+                        console.error("Geolocation error:", error);
+                    },
+                    // Options for geolocation request
+                    {
+                        enableHighAccuracy: true, // Request the most accurate location
+                        timeout: 20000,           // Maximum time (ms) to wait for a location
+                        maximumAge: 0             // Don't use a cached position older than 0 ms (always get fresh)
+                    }
                 );
-                itemEntity.setAttribute("gltf-model", randomItem.model);
-                itemEntity.setAttribute("scale", randomItem.scale);
-                itemEntity.setAttribute("look-at", "#camera"); // Make items face the camera
-                itemEntity.setAttribute("cursor-listener", ""); // Add a component for interaction (optional)
-
-                // Add a text label for the item
-                const textEntity = document.createElement("a-text");
-                textEntity.setAttribute("value", randomItem.name);
-                textEntity.setAttribute("align", "center");
-                textEntity.setAttribute("color", "white");
-                textEntity.setAttribute("wrap-count", "20");
-                textEntity.setAttribute("position", "0 1.5 0"); // Adjust vertical position above the model
-                textEntity.setAttribute("scale", "2 2 2"); // Make text larger
-                itemEntity.appendChild(textEntity);
-
-                scene.appendChild(itemEntity);
-
-                console.log(
-                  `Placed ${randomItem.name} at Lat: ${itemLat}, Lon: ${itemLon}`
-                );
-              }
-
-              // Optional: Watch for position changes to dynamically update
-              // navigator.geolocation.watchPosition((newPosition) => {
-              //     console.log('User moved:', newPosition.coords.latitude, newPosition.coords.longitude);
-              //     // You might want to remove and re-add entities or update their positions
-              //     // This can be complex and might impact performance with many items.
-              // });
-            },
-            (error) => {
-              loader.style.display = "none";
-              let errorMessage = "Error getting your location: ";
-              switch (error.code) {
-                case error.PERMISSION_DENIED:
-                  errorMessage += "User denied the request for Geolocation.";
-                  break;
-                case error.POSITION_UNAVAILABLE:
-                  errorMessage += "Location information is unavailable.";
-                  break;
-                case error.TIMEOUT:
-                  errorMessage += "The request to get user location timed out.";
-                  break;
-                case error.UNKNOWN_ERROR:
-                  errorMessage += "An unknown error occurred.";
-                  break;
-              }
-              alert(
-                errorMessage +
-                  " Please allow location access for this AR experience."
-              );
-              console.error(error);
-            },
-            {
-              enableHighAccuracy: true,
-              timeout: 20000,
-              maximumAge: 0
+            } else {
+                // Browser does not support Geolocation
+                loader.style.display = 'none';
+                showMessage("Geolocation is not supported by your browser. This AR experience requires geolocation to function.");
+                console.error("Geolocation is not supported by this browser.");
             }
-          );
-        } else {
-          loader.style.display = "none";
-          alert(
-            "Geolocation is not supported by your browser. This AR experience requires geolocation."
-          );
         }
-      }
 
-      // A-Frame event listener for scene loaded
-      scene.addEventListener("loaded", () => {
-        placeRandomItems();
-      });
+        // A-Frame event listener: 'loaded' event fires when the A-Frame scene is ready.
+        // We call placeRandomItems() here to start the process of getting location
+        // and placing items.
+        scene.addEventListener('loaded', () => {
+            placeRandomItems();
+        });
 
-      // Optional: Add a simple click listener to the items (for demonstration)
-      AFRAME.registerComponent("cursor-listener", {
-        init: function () {
-          this.el.addEventListener("click", function (evt) {
-            const itemName = this.querySelector("a-text").getAttribute("value");
-            alert(`You found the ${itemName}!`);
-          });
-        }
-      });
+        // A-Frame component to handle clicks on AR entities.
+        // This makes the placed items interactive.
+        AFRAME.registerComponent('cursor-listener', {
+            init: function () {
+                // 'click' event is fired when the user taps on an entity
+                this.el.addEventListener('click', function (evt) {
+                    // Get the name of the item from its child a-text component
+                    const itemName = this.querySelector('a-text').getAttribute('value');
+                    showMessage(`You found the ${itemName}!`); // Display using custom message box
+                    console.log(`Clicked on: ${itemName}`);
+                });
+            }
+        });
     </script>
-  </body>
+</body>
 </html>

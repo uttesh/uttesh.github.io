@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>AR Location Finder</title>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      .arjs-loader {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .arjs-loader div {
+        text-align: center;
+        font-size: 1.2em;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="arjs-loader">
+      <div>
+        Loading AR experience... Please grant location and camera permissions.
+      </div>
+    </div>
+
+    <a-scene
+      vr-mode-ui="enabled: false"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      gps-entity-place="true"
+      renderer="logarithmicDepthBuffer: true;"
+    >
+      <a-camera
+        id="camera"
+        look-controls-enabled="false"
+        arjs-device-orientation-controls="smoothingFactor: 0.1"
+        gps-new-camera="gpsMinDistance: 5"
+      >
+      </a-camera>
+    </a-scene>
+
+    <script>
+      const itemsToPlace = [
+        {
+          name: "Box",
+          model: "assets/wolf_with_animations.glb",
+          scale: "1 1 1",
+          description: "A mysterious box"
+        },
+        {
+          name: "Sphere",
+          model: "assets/toon_cat_free.glb",
+          scale: "0.5 0.5 0.5",
+          description: "A glowing sphere"
+        },
+        {
+          name: "Cylinder",
+          model: "assets/wolf_with_animations.glb",
+          scale: "0.8 0.8 0.8",
+          description: "An ancient cylinder"
+        },
+        {
+          name: "Cone",
+          model: "assets/toon_cat_free.glb",
+          scale: "1.2 1.2 1.2",
+          description: "A pointy cone"
+        }
+      ];
+
+      const scene = document.querySelector("a-scene");
+      const loader = document.querySelector(".arjs-loader");
+
+      // Function to get current location and place items
+      function placeRandomItems() {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const userLat = position.coords.latitude;
+              const userLon = position.coords.longitude;
+
+              loader.style.display = "none"; // Hide loader once location is obtained
+
+              // Place 5 random items around the user's location
+              for (let i = 0; i < 5; i++) {
+                const randomItem =
+                  itemsToPlace[Math.floor(Math.random() * itemsToPlace.length)];
+
+                // Generate slightly offset random coordinates for each item
+                // This creates a spread of items around the user
+                const offsetLat = (Math.random() - 0.5) * 0.0005; // ~50 meters offset
+                const offsetLon = (Math.random() - 0.5) * 0.0005; // ~50 meters offset
+
+                const itemLat = userLat + offsetLat;
+                const itemLon = userLon + offsetLon;
+
+                const itemEntity = document.createElement("a-entity");
+                itemEntity.setAttribute(
+                  "gps-entity-place",
+                  `latitude: ${itemLat}; longitude: ${itemLon};`
+                );
+                itemEntity.setAttribute("gltf-model", randomItem.model);
+                itemEntity.setAttribute("scale", randomItem.scale);
+                itemEntity.setAttribute("look-at", "#camera"); // Make items face the camera
+                itemEntity.setAttribute("cursor-listener", ""); // Add a component for interaction (optional)
+
+                // Add a text label for the item
+                const textEntity = document.createElement("a-text");
+                textEntity.setAttribute("value", randomItem.name);
+                textEntity.setAttribute("align", "center");
+                textEntity.setAttribute("color", "white");
+                textEntity.setAttribute("wrap-count", "20");
+                textEntity.setAttribute("position", "0 1.5 0"); // Adjust vertical position above the model
+                textEntity.setAttribute("scale", "2 2 2"); // Make text larger
+                itemEntity.appendChild(textEntity);
+
+                scene.appendChild(itemEntity);
+
+                console.log(
+                  `Placed ${randomItem.name} at Lat: ${itemLat}, Lon: ${itemLon}`
+                );
+              }
+
+              // Optional: Watch for position changes to dynamically update
+              // navigator.geolocation.watchPosition((newPosition) => {
+              //     console.log('User moved:', newPosition.coords.latitude, newPosition.coords.longitude);
+              //     // You might want to remove and re-add entities or update their positions
+              //     // This can be complex and might impact performance with many items.
+              // });
+            },
+            (error) => {
+              loader.style.display = "none";
+              let errorMessage = "Error getting your location: ";
+              switch (error.code) {
+                case error.PERMISSION_DENIED:
+                  errorMessage += "User denied the request for Geolocation.";
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  errorMessage += "Location information is unavailable.";
+                  break;
+                case error.TIMEOUT:
+                  errorMessage += "The request to get user location timed out.";
+                  break;
+                case error.UNKNOWN_ERROR:
+                  errorMessage += "An unknown error occurred.";
+                  break;
+              }
+              alert(
+                errorMessage +
+                  " Please allow location access for this AR experience."
+              );
+              console.error(error);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 20000,
+              maximumAge: 0
+            }
+          );
+        } else {
+          loader.style.display = "none";
+          alert(
+            "Geolocation is not supported by your browser. This AR experience requires geolocation."
+          );
+        }
+      }
+
+      // A-Frame event listener for scene loaded
+      scene.addEventListener("loaded", () => {
+        placeRandomItems();
+      });
+
+      // Optional: Add a simple click listener to the items (for demonstration)
+      AFRAME.registerComponent("cursor-listener", {
+        init: function () {
+          this.el.addEventListener("click", function (evt) {
+            const itemName = this.querySelector("a-text").getAttribute("value");
+            alert(`You found the ${itemName}!`);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

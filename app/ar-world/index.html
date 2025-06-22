@@ -24,13 +24,19 @@
         border-radius: 8px;
         font-size: 0.9em;
         z-index: 1000;
-        pointer-events: none;
+        pointer-events: none; /* Allows clicks to pass through to AR elements */
       }
 
       #distanceDisplay {
         margin-top: 5px; /* Spacing below lat/lon */
         font-size: 0.8em;
         color: #add8e6; /* Light blue for distance */
+      }
+
+      #directionDisplay {
+        /* New style for direction */
+        font-size: 0.8em;
+        color: #add8e6;
       }
 
       .arjs-loader {
@@ -172,7 +178,8 @@
     <div id="locationInfoDisplay">
       Latitude: <span id="currentLat">--.--</span> <br />
       Longitude: <span id="currentLon">--.--</span> <br />
-      <span id="distanceDisplay">Distance to nearest: -- m</span>
+      <span id="distanceDisplay">Distance to nearest: -- m</span> <br />
+      <span id="directionDisplay">Direction: --</span>
     </div>
 
     <div class="arjs-loader">
@@ -224,52 +231,42 @@
     </a-scene>
 
     <script>
+      // *** IMPORTANT: Replace these with actual latitude/longitude coordinates near your testing location ***
       const itemsToPlace = [
         {
-          name: "Mysterious Box",
-          model: "assets/toon_cat_free.glb",
+          name: "Wolf",
+          model: "assets/wolf.glb",
           scale: "1 1 1",
+          latitude: 34.052235, // Example: Los Angeles (REPLACE THIS)
+          longitude: -118.243683, // Example: Los Angeles (REPLACE THIS)
           description:
-            "This ancient box, covered in strange glyphs, seems to pulse with a faint energy. Perhaps it holds a secret!",
+            "A majestic wolf, symbolizing strength and freedom. It roams the wilds, a guardian of the forest.",
           audioSrc:
             "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
         },
         {
-          name: "Glimmering Orb",
-          model: "assets/wolf_with_animations.glb",
+          name: "Cat",
+          model: "assets/cat.glb",
           scale: "0.8 0.8 0.8",
+          latitude: 34.0528, // Example: Slightly different LA coord (REPLACE THIS)
+          longitude: -118.2445, // Example: Slightly different LA coord (REPLACE THIS)
           description:
-            "A perfectly smooth orb, reflecting light in mesmerizing patterns. Legends say it can reveal hidden truths.",
+            "A curious cat, known for its agility and playful nature. It watches the world with keen eyes, ready to pounce.",
           audioSrc:
             "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
         },
         {
-          name: "Weathered Totem",
-          model: "assets/toon_cat_free.glb",
+          name: "Rhino",
+          model: "assets/rhino.glb",
           scale: "1.2 1.2 1.2",
+          latitude: 34.0515, // Example: Another LA coord (REPLACE THIS)
+          longitude: -118.2428, // Example: Another LA coord (REPLACE THIS)
           description:
-            "Carved from an unknown wood, this totem stands as a silent guardian, weathered by countless seasons.",
+            "A powerful rhino, a symbol of resilience and strength. It stands its ground, a protector of the savannah.",
           audioSrc:
             "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
-        },
-        {
-          name: "Ancient Scroll",
-          model: "assets/wolf_with_animations.glb",
-          scale: "0.9 0.9 0.9",
-          description:
-            "Unfurling slightly, this scroll hints at forgotten lore and maps to untold riches.",
-          audioSrc:
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"
-        },
-        {
-          name: "Floating Gem",
-          model: "assets/toon_cat_free.glb",
-          scale: "1.1 1.1 1.1",
-          description:
-            "This crystalline gem hums with a soft vibration, seemingly defying gravity as it hovers.",
-          audioSrc:
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
         }
+        // Add more items with their specific lat/lon here
       ];
 
       const scene = document.querySelector("a-scene");
@@ -278,7 +275,8 @@
       const messageText = document.getElementById("messageText");
       const currentLatSpan = document.getElementById("currentLat");
       const currentLonSpan = document.getElementById("currentLon");
-      const distanceDisplay = document.getElementById("distanceDisplay"); // New element
+      const distanceDisplay = document.getElementById("distanceDisplay");
+      const directionDisplay = document.getElementById("directionDisplay");
       const descriptionPopup = document.getElementById("descriptionPopup");
       const popupItemName = document.getElementById("popupItemName");
       const popupDescription = document.getElementById("popupDescription");
@@ -312,13 +310,47 @@
         return d;
       }
 
+      /**
+       * Calculates the initial bearing (in degrees) from point 1 to point 2.
+       * @param {number} lat1 - Latitude of point 1 (degrees).
+       * @param {number} lon1 - Longitude of point 1 (degrees).
+       * @param {number} lat2 - Latitude of point 2 (degrees).
+       * @param {number} lon2 - Longitude of point 2 (degrees).
+       * @returns {number} Bearing in degrees (0-360, where 0 is North).
+       */
+      function calculateBearing(lat1, lon1, lat2, lon2) {
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const phi1 = (lat1 * Math.PI) / 180;
+        const phi2 = (lat2 * Math.PI) / 180;
+
+        const y = Math.sin(dLon) * Math.cos(phi2);
+        const x =
+          Math.cos(phi1) * Math.sin(phi2) -
+          Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLon);
+        const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+
+        return (bearing + 360) % 360; // Normalize to 0-360
+      }
+
+      /**
+       * Converts a bearing in degrees to a cardinal direction string.
+       * @param {number} bearing - Bearing in degrees (0-360).
+       * @returns {string} Cardinal direction (e.g., "N", "NE", "E").
+       */
+      function getCardinalDirection(bearing) {
+        const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW", "N"]; // N at start and end for wrapping
+        const index = Math.round(bearing / 45); // Round to nearest 45-degree increment
+        return directions[index];
+      }
+
       function showMessage(message) {
         messageText.textContent = message;
         messageBox.style.display = "block";
       }
 
       /**
-       * Updates the on-screen Latitude/Longitude display and calculates distance to nearest model.
+       * Updates the on-screen Latitude/Longitude display, calculates distance to nearest model,
+       * and shows direction to the nearest model.
        * @param {GeolocationPosition} position - The current geolocation position.
        */
       function updateLocationDisplay(position) {
@@ -328,8 +360,11 @@
         currentLatSpan.textContent = userLat.toFixed(6);
         currentLonSpan.textContent = userLon.toFixed(6);
 
-        // Calculate distance to nearest placed model
         let minDistance = Infinity;
+        let nearestModelLat = null;
+        let nearestModelLon = null;
+
+        // Find the nearest model among the placed entities
         if (placedEntities.length > 0) {
           placedEntities.forEach((entity) => {
             const itemGps = entity.getAttribute("gps-entity-place");
@@ -344,19 +379,37 @@
               );
               if (dist < minDistance) {
                 minDistance = dist;
+                nearestModelLat = itemLat;
+                nearestModelLon = itemLon;
               }
             }
           });
+
           distanceDisplay.textContent = `Distance to nearest: ${minDistance.toFixed(
             1
           )} m`;
+
+          if (nearestModelLat !== null && nearestModelLon !== null) {
+            const bearing = calculateBearing(
+              userLat,
+              userLon,
+              nearestModelLat,
+              nearestModelLon
+            );
+            const direction = getCardinalDirection(bearing);
+            directionDisplay.textContent = `Direction: ${direction}`;
+          } else {
+            directionDisplay.textContent = `Direction: --`;
+          }
         } else {
           distanceDisplay.textContent = `Distance to nearest: -- m`;
+          directionDisplay.textContent = `Direction: --`;
         }
 
+        // Place items only once the first accurate location is obtained
         if (!itemsPlaced) {
-          placeRandomItems(userLat, userLon);
-          itemsPlaced = true;
+          placeFixedItems(); // Call the new function to place items from list
+          itemsPlaced = true; // Set flag to true after placing
         }
       }
 
@@ -385,72 +438,54 @@
       }
 
       /**
-       * Places random AR items around the user's initial location.
-       * @param {number} userLat - User's latitude.
-       * @param {number} userLon - User's longitude.
+       * Places AR items at their predefined geographical locations.
+       * This function is called only once after the first successful location fix.
        */
-      function placeRandomItems(userLat, userLon) {
-        loader.style.display = "none";
+      function placeFixedItems() {
+        loader.style.display = "none"; // Hide loader once we start placing items
 
-        // Changed from 20 feet to 10 feet (~3.048 meters)
-        const desiredDistanceMeters = 3.048;
-        const numberOfItems = 5;
-
-        for (let i = 0; i < numberOfItems; i++) {
-          const randomItem =
-            itemsToPlace[Math.floor(Math.random() * itemsToPlace.length)];
-
-          const randomAngle = Math.random() * 2 * Math.PI;
-
-          const dx_meters = desiredDistanceMeters * Math.cos(randomAngle);
-          const dy_meters = desiredDistanceMeters * Math.sin(randomAngle);
-
-          const meters_per_degree_lat = 111139;
-          const meters_per_degree_lon =
-            111139 * Math.cos((userLat * Math.PI) / 180);
-
-          const offsetLat = dy_meters / meters_per_degree_lat;
-          const offsetLon = dx_meters / meters_per_degree_lon;
-
-          const itemLat = userLat + offsetLat;
-          const itemLon = userLon + offsetLon;
-
+        itemsToPlace.forEach((itemData) => {
           const itemEntity = document.createElement("a-entity");
           itemEntity.setAttribute(
             "gps-entity-place",
-            `latitude: ${itemLat}; longitude: ${itemLon};`
+            `latitude: ${itemData.latitude}; longitude: ${itemData.longitude};`
           );
-          itemEntity.setAttribute("gltf-model", randomItem.model);
-          itemEntity.setAttribute("scale", randomItem.scale);
-          itemEntity.setAttribute("look-at", "#camera");
-          itemEntity.setAttribute("item-data", JSON.stringify(randomItem));
-          itemEntity.setAttribute("cursor-listener", "");
+          itemEntity.setAttribute("gltf-model", itemData.model);
+          itemEntity.setAttribute("scale", itemData.scale);
+          itemEntity.setAttribute("look-at", "#camera"); // Make model always face the camera
+          itemEntity.setAttribute("item-data", JSON.stringify(itemData)); // Store full data
+          itemEntity.setAttribute("cursor-listener", ""); // Enable click listener
 
-          const textEntity = document.createElement("a-text");
-          textEntity.setAttribute("value", randomItem.name);
-          textEntity.setAttribute("align", "center");
-          textEntity.setAttribute("color", "white");
-          textEntity.setAttribute("wrap-count", "20");
-          textEntity.setAttribute("position", "0 1.5 0");
-          textEntity.setAttribute("scale", "2 2 2");
-          itemEntity.appendChild(textEntity);
+          // Add the title of the model visible in the AR scene
+          const titleTextEntity = document.createElement("a-text");
+          titleTextEntity.setAttribute("value", itemData.name);
+          titleTextEntity.setAttribute("align", "center");
+          titleTextEntity.setAttribute("color", "yellow"); // Highlight title in AR view
+          titleTextEntity.setAttribute("wrap-count", "30");
+          titleTextEntity.setAttribute("position", "0 2.5 0"); // Position above the model
+          titleTextEntity.setAttribute("scale", "3 3 3"); // Make title larger
+          titleTextEntity.setAttribute("look-at", "#camera"); // Ensure title also faces camera
+          itemEntity.appendChild(titleTextEntity);
 
           scene.appendChild(itemEntity);
-          placedEntities.push(itemEntity); // Store reference to entity
+          placedEntities.push(itemEntity); // Add to list of placed entities
 
           console.log(
-            `Placed ${randomItem.name} at Lat: ${itemLat.toFixed(
+            `Placed "${itemData.name}" at Lat: ${itemData.latitude.toFixed(
               6
-            )}, Lon: ${itemLon.toFixed(
-              6
-            )} (Approx. ${desiredDistanceMeters}m from user's initial location)`
+            )}, Lon: ${itemData.longitude.toFixed(6)}`
           );
-        }
+        });
       }
 
+      // --- Event Listeners and Initial Setup ---
+
+      // A-Frame event listener: 'loaded' event fires when the A-Frame scene is ready.
       scene.addEventListener("loaded", () => {
+        // Start watching position immediately to update display and place items
         if (navigator.geolocation) {
-          // Use watchPosition to continuously get updates for display and distance calculation
+          // watchPosition will continuously call updateLocationDisplay
+          // which, in turn, will call placeFixedItems only once
           navigator.geolocation.watchPosition(
             updateLocationDisplay,
             handleLocationError,
@@ -469,6 +504,7 @@
         }
       });
 
+      // A-Frame component to handle clicks on AR entities.
       AFRAME.registerComponent("cursor-listener", {
         init: function () {
           this.el.addEventListener("click", function (evt) {
@@ -502,6 +538,7 @@
         }
       });
 
+      // Stop audio if popup is closed
       descriptionPopup
         .querySelector(".close-btn")
         .addEventListener("click", () => {

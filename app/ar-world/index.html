@@ -231,16 +231,16 @@
     </a-scene>
 
     <script>
-      // *** IMPORTANT: Ensure 'assets' folder with 'wolf.glb', 'cat.glb', 'rhino.glb' is in the same directory as this HTML file. ***
-      // *** If hosting online, update model paths to full URLs (e.g., "https://your-domain.com/assets/wolf.glb") ***
+      // *** IMPORTANT: You MUST replace these with actual latitude/longitude coordinates near your testing location ***
+      // *** How to get coordinates: Go to Google Maps, right-click on a spot, and the coordinates will appear. ***
+      // *** For example, if testing in Bengaluru, use coordinates from your specific area. ***
       const itemsToPlace = [
         {
           name: "Wolf",
-          model: "assets/wolf.glb",
-          // Retained smaller scale for "small until near" behavior
-          scale: "0.1 0.1 0.1",
-          latitude: 13.081425,
-          longitude: 77.639332,
+          model: "assets/wolf.glb", // Ensure 'assets' folder with 'wolf.glb' is present
+          scale: "0.1 0.1 0.1", // Retained smaller scale for "small until near" behavior
+          latitude: 13.081425, // Example: Bengaluru coordinates - REPLACE WITH YOURS
+          longitude: 77.639332, // Example: Bengaluru coordinates - REPLACE WITH YOURS
           description:
             "A majestic wolf, symbolizing strength and freedom. It roams the wilds, a guardian of the forest.",
           audioSrc:
@@ -248,11 +248,10 @@
         },
         {
           name: "Cat",
-          model: "assets/cat.glb",
-          // Retained smaller scale for "small until near" behavior
-          scale: "0.08 0.08 0.08",
-          latitude: 13.08131,
-          longitude: 77.639354,
+          model: "assets/cat.glb", // Ensure 'assets' folder with 'cat.glb' is present
+          scale: "0.08 0.08 0.08", // Retained smaller scale
+          latitude: 13.08131, // Example: Bengaluru coordinates - REPLACE WITH YOURS
+          longitude: 77.639354, // Example: Bengaluru coordinates - REPLACE WITH YOURS
           description:
             "A curious cat, known for its agility and playful nature. It watches the world with keen eyes, ready to pounce.",
           audioSrc:
@@ -260,11 +259,10 @@
         },
         {
           name: "Rhino",
-          model: "assets/rhino.glb",
-          // Retained smaller scale for "small until near" behavior
-          scale: "0.12 0.12 0.12",
-          latitude: 13.08135,
-          longitude: 77.639466,
+          model: "assets/rhino.glb", // Ensure 'assets' folder with 'rhino.glb' is present
+          scale: "0.12 0.12 0.12", // Retained smaller scale
+          latitude: 13.08135, // Example: Bengaluru coordinates - REPLACE WITH YOURS
+          longitude: 77.639466, // Example: Bengaluru coordinates - REPLACE WITH YOURS
           description:
             "A powerful rhino, a symbol of resilience and strength. It stands its ground, a protector of the savannah.",
           audioSrc:
@@ -337,14 +335,30 @@
       }
 
       /**
-       * Converts a bearing in degrees to a cardinal direction string.
-       * @param {number} bearing - Bearing in degrees (0-360).
-       * @returns {string} Cardinal direction (e.g., "N", "NE", "E").
+       * Converts a raw compass heading (alpha) and target bearing to a relative direction string.
+       * @param {number} userHeading - Device's current compass heading (0-360, 0=North).
+       * @param {number} targetBearing - Bearing from user to target (0-360, 0=North).
+       * @returns {string} Relative direction (e.g., "Forward", "Left", "Right", "Behind").
        */
-      function getCardinalDirection(bearing) {
-        const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW", "N"]; // N at start and end for wrapping
-        const index = Math.round(bearing / 45); // Round to nearest 45-degree increment
-        return directions[index];
+      function getRelativeDirection(userHeading, targetBearing) {
+        let relativeAngle = targetBearing - userHeading;
+        // Normalize relativeAngle to -180 to 180
+        if (relativeAngle > 180) relativeAngle -= 360;
+        if (relativeAngle < -180) relativeAngle += 360;
+
+        if (relativeAngle > -30 && relativeAngle < 30) {
+          // Forward cone
+          return "Forward ▲";
+        } else if (relativeAngle >= 30 && relativeAngle < 150) {
+          // Right side
+          return "Right ▶";
+        } else if (relativeAngle <= -30 && relativeAngle > -150) {
+          // Left side
+          return "Left ◀";
+        } else {
+          // Behind
+          return "Behind ▼";
+        }
       }
 
       function showMessage(message) {
@@ -394,14 +408,26 @@
           )} m`;
 
           if (nearestModelLat !== null && nearestModelLon !== null) {
-            const bearing = calculateBearing(
+            const targetBearing = calculateBearing(
               userLat,
               userLon,
               nearestModelLat,
               nearestModelLon
             );
-            const direction = getCardinalDirection(bearing);
-            directionDisplay.textContent = `Direction: ${direction}`;
+            // Get the device's current compass heading from AR.js's internal camera component
+            // This 'alpha' is the heading relative to true North
+            const cameraComponent =
+              scene.camera.components["arjs-device-orientation-controls"];
+            if (cameraComponent && cameraComponent.data.alpha !== undefined) {
+              let userHeading = cameraComponent.data.alpha;
+              const direction = getRelativeDirection(
+                userHeading,
+                targetBearing
+              );
+              directionDisplay.textContent = `Direction: ${direction}`;
+            } else {
+              directionDisplay.textContent = `Direction: (Calibrating...)`;
+            }
           } else {
             directionDisplay.textContent = `Direction: --`;
           }
@@ -457,7 +483,8 @@
           itemEntity.setAttribute("gltf-model", itemData.model);
           // Use the new, smaller scale here
           itemEntity.setAttribute("scale", itemData.scale);
-          itemEntity.setAttribute("look-at", "#camera"); // Make model always face the camera
+          // Removed look-at from model to allow natural 3D rotation, but kept for text
+          // itemEntity.setAttribute('look-at', '#camera');
           itemEntity.setAttribute("item-data", JSON.stringify(itemData)); // Store full data
           itemEntity.setAttribute("cursor-listener", ""); // Enable click listener
 

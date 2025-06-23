@@ -39,6 +39,32 @@
         color: #add8e6;
       }
 
+      #controlButtons {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1001;
+        display: flex;
+        gap: 10px; /* Space between buttons */
+      }
+
+      #controlButtons button {
+        background-color: #4caf50; /* Green button */
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px; /* Rounded corners */
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+      }
+
+      #controlButtons button:hover {
+        background-color: #45a049; /* Darker green on hover */
+      }
+
       .arjs-loader {
         height: 100%;
         width: 100%;
@@ -215,6 +241,11 @@
       </div>
     </div>
 
+    <!-- New Control Buttons Container -->
+    <div id="controlButtons">
+      <button id="resetModelsBtn">Reset Models / Recalibrate</button>
+    </div>
+
     <a-scene
       vr-mode-ui="enabled: false"
       arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
@@ -231,16 +262,20 @@
     </a-scene>
 
     <script>
-      // *** IMPORTANT: You MUST replace these with actual latitude/longitude coordinates near your testing location ***
-      // *** How to get coordinates: Go to Google Maps, right-click on a spot, and the coordinates will appear. ***
-      // *** For example, if testing in Bengaluru, use coordinates from your specific area. ***
+      // *************************************************************************************************
+      // *** IMPORTANT: You MUST replace these with actual latitude/longitude coordinates near your    ***
+      // *** physical testing location. This is the #1 reason models don't appear.        ***
+      // *** How to get coordinates: Go to Google Maps (desktop), right-click on a spot,             ***
+      // *** and the coordinates will appear at the top.                    ***
+      // *** For example, if testing in a park in Bengaluru, use coordinates from that specific park. ***
+      // *************************************************************************************************
       const itemsToPlace = [
         {
           name: "Wolf",
           model: "assets/wolf.glb", // Ensure 'assets' folder with 'wolf.glb' is present
-          scale: "0.1 0.1 0.1", // Retained smaller scale for "small until near" behavior
-          latitude: 13.081425, // Example: Bengaluru coordinates - REPLACE WITH YOURS
-          longitude: 77.639332, // Example: Bengaluru coordinates - REPLACE WITH YOURS
+          scale: "0.1 0.1 0.1", // Adjust to make models smaller/larger if needed
+          latitude: 13.081425, // <<< REPLACE WITH YOUR ACTUAL LATITUDE
+          longitude: 77.639332, // <<< REPLACE WITH YOUR ACTUAL LONGITUDE
           description:
             "A majestic wolf, symbolizing strength and freedom. It roams the wilds, a guardian of the forest.",
           audioSrc:
@@ -249,9 +284,9 @@
         {
           name: "Cat",
           model: "assets/cat.glb", // Ensure 'assets' folder with 'cat.glb' is present
-          scale: "0.08 0.08 0.08", // Retained smaller scale
-          latitude: 13.08131, // Example: Bengaluru coordinates - REPLACE WITH YOURS
-          longitude: 77.639354, // Example: Bengaluru coordinates - REPLACE WITH YOURS
+          scale: "0.08 0.08 0.08",
+          latitude: 13.08131, // <<< REPLACE WITH YOUR ACTUAL LATITUDE
+          longitude: 77.639354, // <<< REPLACE WITH YOUR ACTUAL LONGITUDE
           description:
             "A curious cat, known for its agility and playful nature. It watches the world with keen eyes, ready to pounce.",
           audioSrc:
@@ -260,9 +295,9 @@
         {
           name: "Rhino",
           model: "assets/rhino.glb", // Ensure 'assets' folder with 'rhino.glb' is present
-          scale: "0.12 0.12 0.12", // Retained smaller scale
-          latitude: 13.08135, // Example: Bengaluru coordinates - REPLACE WITH YOURS
-          longitude: 77.639466, // Example: Bengaluru coordinates - REPLACE WITH YOURS
+          scale: "0.12 0.12 0.12",
+          latitude: 13.08135, // <<< REPLACE WITH YOUR ACTUAL LATITUDE
+          longitude: 77.639466, // <<< REPLACE WITH YOUR ACTUAL LONGITUDE
           description:
             "A powerful rhino, a symbol of resilience and strength. It stands its ground, a protector of the savannah.",
           audioSrc:
@@ -284,6 +319,7 @@
       const popupDescription = document.getElementById("popupDescription");
       const playAudioBtn = document.getElementById("playAudioBtn");
       const itemAudio = document.getElementById("itemAudio");
+      const resetModelsBtn = document.getElementById("resetModelsBtn"); // Get button reference
 
       let itemsPlaced = false;
       let placedEntities = []; // Array to store references to placed entities
@@ -346,17 +382,27 @@
         if (relativeAngle > 180) relativeAngle -= 360;
         if (relativeAngle < -180) relativeAngle += 360;
 
-        if (relativeAngle > -30 && relativeAngle < 30) {
-          // Forward cone
+        // Define "cones" for directions
+        const FORWARD_THRESHOLD = 30; // +/- 30 degrees for forward
+        const SIDE_THRESHOLD = 150; // Between 30 and 150 for sides
+
+        if (
+          relativeAngle > -FORWARD_THRESHOLD &&
+          relativeAngle < FORWARD_THRESHOLD
+        ) {
           return "Forward ▲";
-        } else if (relativeAngle >= 30 && relativeAngle < 150) {
-          // Right side
+        } else if (
+          relativeAngle >= FORWARD_THRESHOLD &&
+          relativeAngle < SIDE_THRESHOLD
+        ) {
           return "Right ▶";
-        } else if (relativeAngle <= -30 && relativeAngle > -150) {
-          // Left side
+        } else if (
+          relativeAngle <= -FORWARD_THRESHOLD &&
+          relativeAngle > -SIDE_THRESHOLD
+        ) {
           return "Left ◀";
         } else {
-          // Behind
+          // Beyond side thresholds, means behind
           return "Behind ▼";
         }
       }
@@ -468,6 +514,41 @@
       }
 
       /**
+       * Clears all currently placed AR models from the scene and resets the placement flag.
+       * This allows new models to be placed on the next geolocation update.
+       */
+      function resetModelsAndPlace() {
+        // Remove existing entities from the scene
+        placedEntities.forEach((entity) => {
+          scene.removeChild(entity);
+          entity.remove(); // Clean up A-Frame entity
+        });
+        placedEntities = []; // Clear the array
+
+        itemsPlaced = false; // Allow re-placement
+
+        // Trigger a new geolocation request to get current position and re-place
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              updateLocationDisplay(position); // Will call placeFixedItems if !itemsPlaced
+              showMessage(
+                "Models reset and re-placed based on current location."
+              );
+            },
+            handleLocationError,
+            {
+              enableHighAccuracy: true,
+              timeout: 20000,
+              maximumAge: 0
+            }
+          );
+        } else {
+          showMessage("Geolocation not supported for reset.");
+        }
+      }
+
+      /**
        * Places AR items at their predefined geographical locations.
        * This function is called only once after the first successful location fix.
        */
@@ -537,6 +618,9 @@
         }
       });
 
+      // Event listener for the new Reset Models button
+      resetModelsBtn.addEventListener("click", resetModelsAndPlace);
+
       // A-Frame component to handle clicks on AR entities.
       AFRAME.registerComponent("cursor-listener", {
         init: function () {
@@ -582,3 +666,4 @@
     </script>
   </body>
 </html>
+ 

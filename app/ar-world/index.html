@@ -231,14 +231,16 @@
     </a-scene>
 
     <script>
-      // *** IMPORTANT: Replace these with actual latitude/longitude coordinates near your testing location ***
+      // *** IMPORTANT: Ensure 'assets' folder with 'wolf.glb', 'cat.glb', 'rhino.glb' is in the same directory as this HTML file. ***
+      // *** If hosting online, update model paths to full URLs (e.g., "https://your-domain.com/assets/wolf.glb") ***
       const itemsToPlace = [
         {
           name: "Wolf",
           model: "assets/wolf.glb",
-          scale: "1 1 1",
-          latitude: 13.081425, // Example: Los Angeles (REPLACE THIS)
-          longitude: 77.639332, // Example: Los Angeles (REPLACE THIS)
+          // Retained smaller scale for "small until near" behavior
+          scale: "0.1 0.1 0.1",
+          latitude: 13.081425,
+          longitude: 77.639332,
           description:
             "A majestic wolf, symbolizing strength and freedom. It roams the wilds, a guardian of the forest.",
           audioSrc:
@@ -247,9 +249,10 @@
         {
           name: "Cat",
           model: "assets/cat.glb",
-          scale: "0.8 0.8 0.8",
-          latitude: 13.08131, // Example: Slightly different LA coord (REPLACE THIS)
-          longitude: 77.639354, // Example: Slightly different LA coord (REPLACE THIS)
+          // Retained smaller scale for "small until near" behavior
+          scale: "0.08 0.08 0.08",
+          latitude: 13.08131,
+          longitude: 77.639354,
           description:
             "A curious cat, known for its agility and playful nature. It watches the world with keen eyes, ready to pounce.",
           audioSrc:
@@ -258,9 +261,10 @@
         {
           name: "Rhino",
           model: "assets/rhino.glb",
-          scale: "1.2 1.2 1.2",
-          latitude: 13.08135, // Example: Another LA coord (REPLACE THIS)
-          longitude: 77.639466, // Example: Another LA coord (REPLACE THIS)
+          // Retained smaller scale for "small until near" behavior
+          scale: "0.12 0.12 0.12",
+          latitude: 13.08135,
+          longitude: 77.639466,
           description:
             "A powerful rhino, a symbol of resilience and strength. It stands its ground, a protector of the savannah.",
           audioSrc:
@@ -451,6 +455,7 @@
             `latitude: ${itemData.latitude}; longitude: ${itemData.longitude};`
           );
           itemEntity.setAttribute("gltf-model", itemData.model);
+          // Use the new, smaller scale here
           itemEntity.setAttribute("scale", itemData.scale);
           itemEntity.setAttribute("look-at", "#camera"); // Make model always face the camera
           itemEntity.setAttribute("item-data", JSON.stringify(itemData)); // Store full data
@@ -462,8 +467,9 @@
           titleTextEntity.setAttribute("align", "center");
           titleTextEntity.setAttribute("color", "yellow"); // Highlight title in AR view
           titleTextEntity.setAttribute("wrap-count", "30");
-          titleTextEntity.setAttribute("position", "0 2.5 0"); // Position above the model
-          titleTextEntity.setAttribute("scale", "3 3 3"); // Make title larger
+          // Adjusted position relative to the new, smaller model scale
+          titleTextEntity.setAttribute("position", "0 0.5 0"); // Position above the model (e.g., 0.5m above its pivot)
+          titleTextEntity.setAttribute("scale", "1 1 1"); // Keep title text scale reasonable
           titleTextEntity.setAttribute("look-at", "#camera"); // Ensure title also faces camera
           itemEntity.appendChild(titleTextEntity);
 
